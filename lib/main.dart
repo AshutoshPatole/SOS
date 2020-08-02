@@ -1,8 +1,10 @@
 import 'package:circular_countdown_timer/circular_countdown_timer.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_google_places/flutter_google_places.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:google_maps_webservice/places.dart';
 import 'package:shake/shake.dart';
 import 'package:sms_maintained/sms.dart';
 
@@ -42,12 +44,45 @@ class _MyHomePageState extends State<MyHomePage> {
   String _currentAddress;
   SmsSender sender = SmsSender();
 
+// to get places detail (lat/lng)
+  GoogleMapsPlaces _places =
+      GoogleMapsPlaces(apiKey: "YOUR_API_HERE");
   final Set<Polyline> _polyLines = {};
   GoogleMapsServices _googleMapsServices = GoogleMapsServices();
+
   Set<Polyline> get polyLines => _polyLines;
 
   String address = "9677051645";
+
   // String address = "9003162666";
+  Future<void> _handlePressButton() async {
+    // show input autocomplete with selected mode
+    // then get the Prediction selected
+    Prediction p = await PlacesAutocomplete.show(
+      context: context,
+      apiKey: "YOUR_API_HERE",
+      onError: onError,
+      mode: Mode.overlay,
+      language: "en",
+      components: [Component(Component.country, "en")],
+    );
+
+    displayPrediction(p);
+  }
+
+  void onError(PlacesAutocompleteResponse response) {
+    Fluttertoast.showToast(msg: response.errorMessage);
+  }
+
+  Future<Null> displayPrediction(Prediction p) async {
+    if (p != null) {
+      // get detail (lat/lng)
+      PlacesDetailsResponse detail =
+          await _places.getDetailsByPlaceId(p.placeId);
+      final lat = detail.result.geometry.location.lat;
+      final lng = detail.result.geometry.location.lng;
+    }
+  }
 
   void counter() {
     showDialog(
@@ -126,11 +161,11 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void sendRequest() async {
-    LatLng destination = LatLng(20.008751, 73.780037);
+    LatLng destination = LatLng(13.0827, 80.2707);
     String route =
         await _googleMapsServices.getRouteCoordinates(latLng, destination);
     createRoute(route);
-    _addMarker(destination, "KTHM Collage");
+    _addMarker(destination, "Kelambakkam");
   }
 
   void _addMarker(LatLng location, String address) {
@@ -193,6 +228,7 @@ class _MyHomePageState extends State<MyHomePage> {
   GoogleMapController mapController;
   final Set<Marker> _markers = {};
   LatLng latLng;
+
   void onAddMarkerButtonPressed() {
     setState(() {
       _markers.add(Marker(
@@ -204,6 +240,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   final LatLng _center = const LatLng(13.0827, 80.2707);
+
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
   }
@@ -214,14 +251,26 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Text(widget.title),
       ),
-      body: GoogleMap(
-        onMapCreated: _onMapCreated,
-        initialCameraPosition: CameraPosition(
-          target: latLng != null ? latLng : _center,
-          zoom: 14.4746,
-        ),
-        myLocationEnabled: true,
-        markers: _markers,
+      body: Stack(
+        children: [
+          GoogleMap(
+            onMapCreated: _onMapCreated,
+            initialCameraPosition: CameraPosition(
+              target: latLng != null ? latLng : _center,
+              zoom: 14.4746,
+            ),
+            myLocationEnabled: true,
+            markers: _markers,
+            polylines: _polyLines,
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          sendRequest();
+        },
+        label: Text('Destination'),
+        icon: Icon(Icons.directions_boat),
       ),
     );
   }
@@ -250,7 +299,7 @@ class _MyHomePageState extends State<MyHomePage> {
       latLng = LatLng(_currentPosition.latitude, _currentPosition.longitude);
 
       Placemark place = p[0];
-      print(place.toJson()); // Detailed address can be found here. See Logcat
+//      print(place.toJson()); // Detailed address can be found here. See Logcat
       setState(() {
         _currentAddress =
             "${place.name},${place.subLocality},${place.thoroughfare},${place.locality},${place.subAdministrativeArea},${place.postalCode}";
