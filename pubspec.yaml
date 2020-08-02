@@ -17,6 +17,7 @@ dependencies:
   circular_countdown_timer: ^0.0.4
   geolocator: ^5.3.2+2
   google_maps_flutter: ^0.5.28+1
+  http: ^0.12.2
 
 
 dev_dependencies:

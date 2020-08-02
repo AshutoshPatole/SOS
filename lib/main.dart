@@ -6,6 +6,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shake/shake.dart';
 import 'package:sms_maintained/sms.dart';
 
+import 'googleDirectionServices.dart';
+
 void main() {
   runApp(MyApp());
 }
@@ -39,6 +41,11 @@ class _MyHomePageState extends State<MyHomePage> {
   Position _currentPosition;
   String _currentAddress;
   SmsSender sender = SmsSender();
+
+  final Set<Polyline> _polyLines = {};
+  GoogleMapsServices _googleMapsServices = GoogleMapsServices();
+  Set<Polyline> get polyLines => _polyLines;
+
   String address = "9677051645";
   // String address = "9003162666";
 
@@ -108,6 +115,70 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  List<LatLng> _convertToLatLng(List points) {
+    List<LatLng> result = <LatLng>[];
+    for (int i = 0; i < points.length; i++) {
+      if (i % 2 != 0) {
+        result.add(LatLng(points[i - 1], points[i]));
+      }
+    }
+    return result;
+  }
+
+  void sendRequest() async {
+    LatLng destination = LatLng(20.008751, 73.780037);
+    String route =
+        await _googleMapsServices.getRouteCoordinates(latLng, destination);
+    createRoute(route);
+    _addMarker(destination, "KTHM Collage");
+  }
+
+  void _addMarker(LatLng location, String address) {
+    _markers.add(Marker(
+        markerId: MarkerId("112"),
+        position: location,
+        infoWindow: InfoWindow(title: address, snippet: "go here"),
+        icon: BitmapDescriptor.defaultMarker));
+  }
+
+  void createRoute(String encondedPoly) {
+    _polyLines.add(Polyline(
+        polylineId: PolylineId(latLng.toString()),
+        width: 4,
+        points: _convertToLatLng(_decodePoly(encondedPoly)),
+        color: Colors.red));
+  }
+
+  List _decodePoly(String poly) {
+    var list = poly.codeUnits;
+    var lList = new List();
+    int index = 0;
+    int len = poly.length;
+    int c = 0;
+    do {
+      var shift = 0;
+      int result = 0;
+
+      do {
+        c = list[index] - 63;
+        result |= (c & 0x1F) << (shift * 5);
+        index++;
+        shift++;
+      } while (c >= 32);
+      if (result & 1 == 1) {
+        result = ~result;
+      }
+      var result1 = (result >> 1) * 0.00001;
+      lList.add(result1);
+    } while (index < len);
+
+    for (var i = 2; i < lList.length; i++) lList[i] += lList[i - 2];
+
+    print(lList.toString());
+
+    return lList;
+  }
+
   @override
   void initState() {
     _getCurrentLocation();
@@ -120,9 +191,17 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   GoogleMapController mapController;
-
-  double la;
-  double lo;
+  final Set<Marker> _markers = {};
+  LatLng latLng;
+  void onAddMarkerButtonPressed() {
+    setState(() {
+      _markers.add(Marker(
+        markerId: MarkerId("111"),
+        position: latLng,
+        icon: BitmapDescriptor.defaultMarker,
+      ));
+    });
+  }
 
   final LatLng _center = const LatLng(13.0827, 80.2707);
   void _onMapCreated(GoogleMapController controller) {
@@ -138,10 +217,11 @@ class _MyHomePageState extends State<MyHomePage> {
       body: GoogleMap(
         onMapCreated: _onMapCreated,
         initialCameraPosition: CameraPosition(
-          target: _center,
-          zoom: 15.0,
+          target: latLng != null ? latLng : _center,
+          zoom: 14.4746,
         ),
         myLocationEnabled: true,
+        markers: _markers,
       ),
     );
   }
@@ -167,8 +247,7 @@ class _MyHomePageState extends State<MyHomePage> {
     try {
       List<Placemark> p = await geolocator.placemarkFromCoordinates(
           _currentPosition.latitude, _currentPosition.longitude);
-      la = _currentPosition.latitude;
-      lo = _currentPosition.longitude;
+      latLng = LatLng(_currentPosition.latitude, _currentPosition.longitude);
 
       Placemark place = p[0];
       print(place.toJson()); // Detailed address can be found here. See Logcat
