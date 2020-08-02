@@ -9,14 +9,13 @@
          <uses-permission android:name="android.permission.FINE_LOCATION" />
          <uses-permission android:name="android.permission.COARSE_LOCATION" />
 
-         <!-- jsjshjsh-6n5U -->
     <application
         android:name="io.flutter.app.FlutterApplication"
         android:label="shakey_shake"
      
         android:icon="@mipmap/ic_launcher">
             <meta-data android:name="com.google.android.geo.API_KEY"
-               android:value="jshjshsjhs"/>
+               android:value="YOUR_KEY_HERE"/>
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"
