@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_webservice/places.dart';
 import 'package:shake/shake.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sms_maintained/sms.dart';
 
 import 'googleDirectionServices.dart';
@@ -23,7 +24,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.green,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: MyHomePage(title: 'ShakeyShake'),
+      home: MyHomePage(title: 'SOS'),
     );
   }
 }
@@ -45,8 +46,7 @@ class _MyHomePageState extends State<MyHomePage> {
   SmsSender sender = SmsSender();
 
 // to get places detail (lat/lng)
-  GoogleMapsPlaces _places =
-      GoogleMapsPlaces(apiKey: "YOUR_API_HERE");
+  GoogleMapsPlaces _places = GoogleMapsPlaces(apiKey: "YOUR_API_HERE");
   final Set<Polyline> _polyLines = {};
   GoogleMapsServices _googleMapsServices = GoogleMapsServices();
 
@@ -84,7 +84,8 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  void counter() {
+  void counter() async {
+    final SharedPreferences prefs = await _prefs;
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -119,18 +120,26 @@ class _MyHomePageState extends State<MyHomePage> {
 
             // Function which will execute when the Countdown Ends
             onComplete: () {
-              SmsMessage message = new SmsMessage(address,
+              SmsMessage message = new SmsMessage(prefs.getString('number'),
                   "The address is $_currentAddress and the exact co-ordinates are LAT:${_currentPosition.latitude} and LNG : ${_currentPosition.longitude}");
               message.onStateChanged.listen((state) {
                 if (state == SmsMessageState.Sent) {
                   Fluttertoast.showToast(
-                      msg: 'Message sent to the number',
-                      textColor: Colors.black);
+                    msg: 'Message sent to the number',
+                    textColor: Colors.black,
+                    backgroundColor: Colors.green,
+                  );
                 } else if (state == SmsMessageState.Delivered) {
                   print("SMS is delivered!");
                 }
               });
-              sender.sendSms(message);
+              prefs.getString("number") != null
+                  ? sender.sendSms(message)
+                  : Fluttertoast.showToast(
+                      msg: "Please add atleast one number to send SOS",
+                      textColor: Colors.black,
+                      fontSize: 16,
+                      backgroundColor: Colors.red);
               Navigator.pop(context);
             },
           ),
@@ -143,6 +152,46 @@ class _MyHomePageState extends State<MyHomePage> {
                 Navigator.pop(context);
               },
               child: Text("Cancel"),
+            )
+          ],
+        );
+      },
+    );
+  }
+
+  Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+  TextEditingController _number = TextEditingController();
+  void addNumber() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Add number"),
+          content: TextFormField(
+            controller: _number,
+            decoration: InputDecoration(hintText: "Ex 90031XXXXX"),
+          ),
+          actions: <Widget>[
+            RaisedButton(
+              color: Colors.green,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20.0)),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text("Cancel"),
+            ),
+            RaisedButton(
+              color: Colors.green,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20.0)),
+              onPressed: () async {
+                print(_number.text);
+                final SharedPreferences prefs = await _prefs;
+                await prefs.setString('number', _number.text);
+                Navigator.pop(context);
+              },
+              child: Text("Add"),
             )
           ],
         );
@@ -265,12 +314,11 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () {
-          sendRequest();
+          addNumber();
         },
-        label: Text('Destination'),
-        icon: Icon(Icons.directions_boat),
+        child: Icon(Icons.add),
       ),
     );
   }

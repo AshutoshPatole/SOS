@@ -21,6 +21,7 @@ dependencies:
   location: ^2.3.5
   flutter_google_places: ^0.2.6
   google_maps_webservice: ^0.0.17
+  shared_preferences: ^0.5.8
 
 
 dev_dependencies:
